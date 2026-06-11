@@ -14,8 +14,6 @@ def _alarm():
         if IS_WINDOWS:
             winsound.Beep(4000, 1500)
         else:
-            # Cloud / Linux ke liye - sound hardware nahi hota
-            # isliye yahan kuch nahi karte (silent)
             import time
             time.sleep(1.5)
 
