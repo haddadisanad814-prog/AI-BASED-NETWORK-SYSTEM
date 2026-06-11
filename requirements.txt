@@ -1,0 +1,7 @@
+streamlit
+pandas
+psutil
+joblib
+scikit-learn
+streamlit-autorefresh
+reportlab
