@@ -1,0 +1,500 @@
+itna project bana hai
+1. 🧠 AI Brain
+chat_assistant.py
+chat_ai.py
+failure_model.pkl
+2. 📡 Monitoring System
+live_monitoring.py
+system_status.py
+network_detector.py
+3. 🔧 Automation System
+self_healing.py
+email_alert.py
+failure_logger.py
+logger.py
+4. 📊 Reporting & DB
+report_pdf.py
+database.py
+sla_monitor.py
+
+ya bana baki hai
+
+✔ Streamlit login page
+✔ role-based dashboard
+✔ Cisco style UI structure
+animatations
+1.Live Graphs
+.CPU Usage Graph
+.Memory Graph
+.Risk Score Graph
+.Network Health Graph
+
+
+import psutil
+import streamlit as st
+import pandas as pd
+import os
+import time
+import platform
+from datetime import datetime
+from streamlit_autorefresh import st_autorefresh
+from dashboard.components.alerts import show_alert
+from dashboard.components.buzzer import start_buzzer, stop_buzzer
+from dashboard.components.cisco_map import show_cisco_map
+# ================= PAGE CONFIG =================
+st.set_page_config(page_title="AI NOC Dashboard", layout="wide")
+
+st.sidebar.title("🖧 CONTROL PANEL")
+
+page = st.sidebar.radio(
+    "Navigation",
+    ["Dashboard", "Network Logs", "AI Analytics", "System Info"]
+)
+
+# ================= HEADER =================
+st.markdown("""
+# 🖧 AI-BASED NETWORK PREDICTION AND SELF HEALING
+### 👨‍💻 Project By: SANAD SAJJAD HADDADI
+### 📅 Project Date: 12 JUNE 2026
+---
+""")
+
+current_time = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+st.info(f"🕒 Current Time : {current_time}")
+
+# ================= AUTO REFRESH =================
+st_autorefresh(interval=2000, key="refresh")
+
+# ================= SESSION STATE =================
+if "cpu" not in st.session_state:
+    st.session_state.cpu = []
+if "ram" not in st.session_state:
+    st.session_state.ram = []
+if "risk" not in st.session_state:
+    st.session_state.risk = []
+if "ping" not in st.session_state:
+    st.session_state.ping = []
+
+# ================= CONNECTION TYPE =================
+def get_connection_type():
+    stats = psutil.net_if_stats()
+
+    for iface, stat in stats.items():
+        name = iface.lower()
+
+        if stat.isup:
+            if "wi-fi" in name or "wifi" in name or "wlan" in name:
+                return "WIRELESS 📶"
+            if "ethernet" in name or "eth" in name:
+                return "WIRED 🔌"
+
+    return "UNKNOWN ⚠"
+
+connection_type = get_connection_type()
+
+# ================= PING FUNCTION (LATENCY) =================
+def get_ping():
+    try:
+        if platform.system().lower() == "windows":
+            cmd = "ping 8.8.8.8 -n 1"
+        else:
+            cmd = "ping 8.8.8.8 -c 1"
+
+        output = os.popen(cmd).read()
+
+        if "time=" in output:
+            try:
+                return float(output.split("time=")[1].split("ms")[0].strip())
+            except:
+                return 0
+        return 0
+    except:
+        return 0
+
+# ================= NETWORK STATUS =================
+net = os.system("ping 8.8.8.8 -n 1 > nul")
+network_status = "UP" if net == 0 else "DOWN"
+
+ping_ms = get_ping()
+st.session_state.ping.append(ping_ms)
+st.session_state.ping = st.session_state.ping[-30:]
+# ================= DASHBOARD =================
+if page == "Dashboard":
+
+    cpu = psutil.cpu_percent(interval=1)
+    ram = psutil.virtual_memory().percent
+    disk = psutil.disk_usage("C:\\").percent
+
+    risk = (cpu + ram) / 2
+
+        # ================= TOP ALERT BANNER =================
+    if network_status == "DOWN":
+        show_alert("🚨 NETWORK DOWN ALERT 🚨")
+
+    elif cpu > 90:
+        show_alert("🚨 CPU CRITICAL ALERT 🚨")
+
+    elif ram > 90:
+        show_alert("🚨 RAM CRITICAL ALERT 🚨")
+
+    st.session_state.cpu.append(cpu)
+    st.session_state.ram.append(ram)
+    st.session_state.risk.append(risk)
+
+    st.session_state.cpu = st.session_state.cpu[-30:]
+    st.session_state.ram = st.session_state.ram[-30:]
+    st.session_state.risk = st.session_state.risk[-30:]
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    col1.metric("CPU", f"{cpu}%")
+    col2.metric("RAM", f"{ram}%")
+    col3.metric("DISK", f"{disk}%")
+    col4.metric("NETWORK", network_status)
+    col5.metric("CONNECTION", connection_type)
+
+    st.markdown("## 📊 LIVE SYSTEM GRAPH")
+    st.line_chart(pd.DataFrame({
+        "cpu": st.session_state.cpu,
+        "ram": st.session_state.ram,
+        "risk": st.session_state.risk
+    }))
+
+    # ================= CISCO NETWORK MAP =================
+    st.markdown("")
+    show_cisco_map(cpu, ram, network_status)
+    # ================= PING LATENCY GRAPH =================
+    st.markdown("## 📡 REAL PING LATENCY (ms)")
+
+    st.line_chart(pd.DataFrame({
+        "ping_ms": st.session_state.ping
+    }))
+
+    # ================= ALERT SYSTEM =================
+    critical = (network_status == "DOWN" or cpu > 90 or ram > 90)
+
+    if critical:
+        start_buzzer()
+    else:
+        stop_buzzer()
+
+    if network_status == "DOWN":
+        st.error("🔴 NETWORK DOWN")
+
+    elif cpu > 90:
+        st.error("🔥 CPU CRITICAL")
+
+    elif ram > 90:
+        st.error("🔥 RAM CRITICAL")
+
+    else:
+        st.success("🟢 SYSTEM HEALTHY")
+
+# ================= NETWORK LOGS =================
+elif page == "Network Logs":
+    st.header("📄 Network Logs")
+    try:
+        logs = pd.read_csv("network_logs.csv")
+        st.dataframe(logs)
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+# ================= AI ANALYTICS =================
+elif page == "AI Analytics":
+    st.header("🤖 AI Analytics")
+
+    if len(st.session_state.risk) > 0:
+        st.metric("Current Risk", f"{round(st.session_state.risk[-1],1)}%")
+
+    st.line_chart(pd.DataFrame({
+        "risk": st.session_state.risk
+    }))
+
+# ================= SYSTEM INFO =================
+elif page == "System Info":
+    st.header("💻 System Info")
+
+    st.write(f"CPU: {psutil.cpu_percent()}%")
+    st.write(f"RAM: {psutil.virtual_memory().percent}%")
+    st.write(f"DISK: {psutil.disk_usage('C:\\').percent}%")
+    st.write(f"Network: {network_status}")
+    st.write(f"Connection Type: {connection_type}")
+
+
+now errors code
+
+import psutil
+import streamlit as st
+import pandas as pd
+import os
+import platform
+from datetime import datetime
+from streamlit_autorefresh import st_autorefresh
+from dashboard.components.alerts import show_alert
+from dashboard.components.buzzer import start_buzzer, stop_buzzer
+from dashboard.logger import log_data
+from dashboard.components.cisco_map import show_cisco_map
+from datetime import datetime
+
+time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+# ================= PAGE CONFIG =================
+st.set_page_config(page_title="AI NOC Dashboard", layout="wide")
+
+st.sidebar.title("🖧 CONTROL PANEL")
+page = st.sidebar.radio("Navigation",
+                ["Dashboard", "Network Logs", "AI Analytics", "System Info"])
+
+# ================= HEADER =================
+st.markdown("""
+# 🖧 AI-Based Network Prediction & Self Healing
+### ⚡ REAL-TIME NETWORK MONITORING + AI AUTO-HEAL SYSTEM
+### 👨‍💻 SANAD HADDADI
+---
+""")
+
+st.info(f"🕒 {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
+
+# ================= AUTO REFRESH =================
+st_autorefresh(interval=5000, key="refresh")
+
+# ================= SESSION STATE =================
+for key in ["cpu", "ram", "risk", "ping", "alerts"]:
+    if key not in st.session_state:
+        st.session_state[key] = []
+
+# ================= CONNECTION =================
+def get_connection_type():
+    stats = psutil.net_if_stats()
+
+    for i, s in stats.items():
+        if s.isup:
+
+            if "wi-fi" in i.lower() or "wlan" in i.lower():
+                return "WIRELESS 📶"
+
+            if "eth" in i.lower():
+                return "WIRED 🔌"
+
+    return "UNKNOWN"
+
+# ================= PING =================
+def get_ping():
+    try:
+        if platform.system().lower() == "windows":
+            cmd = "ping 8.8.8.8 -n 1"
+        else:
+            cmd = "ping 8.8.8.8 -c 1"
+
+        out = os.popen(cmd).read()
+
+        if "time=" in out:
+            return float(out.split("time=")[1].split("ms")[0])
+
+        return 0
+
+    except:
+        return 0
+
+# ================= NETWORK =================
+net = os.system("ping 8.8.8.8 -n 1 > nul")
+network_status = "UP" if net == 0 else "DOWN"
+
+ping = get_ping()
+
+# safety check (IMPORTANT)
+if "ping" not in st.session_state:
+    st.session_state.ping = []
+
+st.session_state.ping.append(ping)
+st.session_state.ping = st.session_state.ping[-20:]
+# ================= DASHBOARD =================
+if page == "Dashboard":
+
+    cpu = psutil.cpu_percent(interval=0.1)
+    ram = psutil.virtual_memory().percent
+    disk = psutil.disk_usage("C:\\").percent
+    risk = (cpu + ram) / 2
+
+    prediction = "NORMAL"
+
+    if network_status == "DOWN":
+        prediction = "NETWORK FAILURE"
+    elif cpu > 90:
+        prediction = "CPU OVERLOAD"
+    elif ram > 90:
+        prediction = "MEMORY OVERLOAD"
+
+# ================= AUTO HEAL (FIXED) =================
+if cpu > 90:
+        st.info("🔧 CPU HEAL")
+    if ram > 90:
+        st.info("🔧 RAM HEAL")
+    if network_status == "DOWN":
+        st.info("🔧 NETWORK HEAL")
+
+    log_data(time_now, network_status, cpu, ram, prediction, round(risk,2))
+
+    st.session_state.cpu.append(cpu)
+    st.session_state.ram.append(ram)
+    st.session_state.risk.append(risk)
+
+# ================= LOGGING =================
+    log_data(
+        time_now,
+        network_status,
+        cpu,
+        ram,
+        prediction,
+        round(risk, 2)
+    )
+
+    st.session_state.cpu.append(cpu)
+    st.session_state.ram.append(ram)
+    st.session_state.risk.append(risk)
+
+    st.session_state.cpu = st.session_state.cpu[-20:]
+    st.session_state.ram = st.session_state.ram[-20:]
+    st.session_state.risk = st.session_state.risk[-20:]
+
+# ================= ALERT =================
+if network_status == "DOWN":
+    show_alert("🚨 NETWORK FAILURE DETECTED - AI RECOVERY MODE ACTIVE")
+
+elif cpu > 90:
+    show_alert("🚨 CPU OVERLOAD - SYSTEM STABILIZING")
+
+elif ram > 90:
+    show_alert("🚨 MEMORY PRESSURE HIGH - OPTIMIZING")
+
+# ================= METRICS =================
+col1, col2, col3, col4, col5 = st.columns(5)
+
+col1.metric("CPU", f"{cpu}%")
+col2.metric("RAM", f"{ram}%")
+col3.metric("DISK", f"{disk}%")
+col4.metric("NETWORK", network_status)
+col5.metric("CONNECTION", connection_type)
+
+st.markdown("## ⚠️ AI WARNING PANEL")
+
+warnings = []
+
+if network_status == "DOWN":
+    warnings.append("Network Down")
+if cpu > 90:
+    warnings.append("CPU High")
+if ram > 90:
+    warnings.append("Memory High")
+
+if len(warnings) == 0:
+    st.success("🟢 All Systems Normal")
+else:
+    for w in warnings:
+        st.error(f"🔴 {w}")
+# ================= SYSTEM GRAPH =================
+st.markdown("## 📊 SYSTEM GRAPH")
+
+st.line_chart(pd.DataFrame({
+"cpu": st.session_state.cpu,
+"ram": st.session_state.ram,
+"risk": st.session_state.risk
+}))
+
+# ================= PING GRAPH =================
+st.markdown("## 📡 PING (ms)")
+
+st.line_chart(pd.DataFrame({
+"ping": st.session_state.ping
+}))
+
+# ================= NETWORK SCORE =================
+smart_score = max(0, 100 - int(ping))
+
+st.markdown("## 🌐 NETWORK SCORE")
+
+score1, score2 = st.columns(2)
+
+score1.metric("Ping", f"{ping} ms")
+score2.metric("Score", f"{smart_score}%")
+
+st.progress(smart_score / 100)
+
+# ================= AI SYSTEM HEALTH =================
+health = max(0, 100 - int(risk))
+
+st.markdown("## 🧠 AI SYSTEM HEALTH STATUS")
+
+if health > 80:
+    st.success(f"🟢 SYSTEM HEALTHY ({health}%)")
+
+elif health > 50:
+    st.warning(f"🟡 SYSTEM STABLE ({health}%)")
+
+else:
+    st.error(f"🔴 SYSTEM CRITICAL ({health}%)")
+
+st.progress(health / 100)
+
+#============ STATUS =================
+if network_status == "DOWN":
+    st.error("🔴 NETWORK DOWN")
+
+elif cpu > 90:
+    st.error("🔥 CPU HIGH")
+
+elif ram > 90:
+    st.error("🔥 RAM HIGH")
+
+else:
+    st.success("🟢 SERVER HEALTHY")
+
+# =============== CISCO MAP ================
+st.markdown("## 🌐 LIVE NETWORK FLOW STATUS")
+
+st.write("📡 Internet ➝ Router ➝ Switch ➝ Server ➝ Client")
+
+st.progress(100 if network_status == "UP" else 40)
+
+# ================= BUZZER =================
+critical = (
+    network_status == "DOWN"
+    or cpu > 90
+    or ram > 90
+)
+
+if critical:
+    start_buzzer()
+else:
+    stop_buzzer()
+# ================= NETWORK LOGS =================
+elif page == "Network Logs":
+
+    st.header("📄 Network Logs")
+
+    try:
+        logs = pd.read_csv("network_logs.csv")
+        logs["Time"] = pd.to_datetime(logs["Time"])
+        logs = logs.sort_values("Time")
+        logs = logs[logs["Time"] >= pd.Timestamp.now() - pd.Timedelta(days=1)]
+        st.dataframe(logs, use_container_width=True)
+
+    except:
+        st.warning("No logs found")
+
+# ================= AI ANALYTICS =================
+
+elif page == "AI Analytics":
+
+    st.header("🤖 AI Analytics")
+
+    if len(st.session_state.risk) > 0:
+        st.metric("Risk", f"{st.session_state.risk[-1]}%")
+
+#================= SYSTEM INFO =================
+elif page == "System Info":
+
+    st.header("💻 System Information")
+
+    st.write("CPU:", psutil.cpu_percent())
+    st.write("RAM:", psutil.virtual_memory().percent)
+    st.write("Disk:", psutil.disk_usage("C:\\").percent)
