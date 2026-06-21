@@ -1,7 +1,9 @@
 import threading
 import platform
+import time
 
 running = False
+lock = threading.Lock()
 
 IS_WINDOWS = platform.system().lower() == "windows"
 
@@ -12,20 +14,32 @@ if IS_WINDOWS:
 def _alarm():
     global running
 
-    while running:
+    while True:
+        with lock:
+            if not running:
+                break
+
         if IS_WINDOWS:
-            winsound.Beep(4000, 1500)
+            try:
+                winsound.Beep(1200, 500)
+            except Exception:
+                pass
         else:
-            time.sleep(1.5)
+            time.sleep(0.5)
 
 
 def start_buzzer():
     global running
-    if not running:
+
+    with lock:
+        if running:
+            return
         running = True
-        threading.Thread(target=_alarm, daemon=True).start()
+
+    threading.Thread(target=_alarm, daemon=True).start()
 
 
 def stop_buzzer():
     global running
-    running = False
+    with lock:
+        running = False

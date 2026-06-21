@@ -26,7 +26,13 @@ labels = [
     "SERVER",
     "SYSTEM",
     "SYSTEM",
-    "HELP"
+    "HELP",
+    "highest cpu"
+    "highest ram"
+    "network score"
+    "failure prediction"
+    "sla status"
+    "device count"
 ]
 
 # ---------------- NLP MODEL ----------------

@@ -4,6 +4,8 @@ import pandas as pd
 import os
 import platform
 import time
+import joblib
+model = joblib.load("failure_model.pkl")
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
@@ -12,6 +14,8 @@ from dashboard.components.buzzer import start_buzzer, stop_buzzer
 from dashboard.logger import log_data
 from dashboard.components.cisco_map import show_cisco_map
 from dashboard.components.networktopology_map import show_topology
+from dashboard.components.lan_monitor import show_lan
+from dashboard.components.project_ppt import show_project_ppt
 
 from auth import login
 from email_alert import send_alert
@@ -64,21 +68,99 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigation",
-    ["Dashboard", "Network Logs", "AI Analytics", "System Info", "Reports", "AI Assistant"]
+    [
+        "Dashboard",
+        "LAN Monitoring",
+        "Network Logs",
+        "AI Analytics",
+        "System Info",
+        "Reports",
+        "AI Assistant",
+        "Project PPT"
+    ]
 )
 
 # ================= HEADER =================
-st.markdown("""
-# 🖧 AI-Based Network Monitoring & Self-Healing System
-### ⚡ Real-Time AI Network Intelligence Platform
-### 🎓 Training Institute: Jetking Infotrain Ltd, Dadar (Mumbai)
-### 🚀 TechFest 2026 Project Showcase
-### 👨‍💻 Developer: Sanad Haddadi
-### 📅 12 June 2026
----
-""")
+import streamlit.components.v1 as components
 
-st.info(f"🕒 {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
+components.html("""
+<style>
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.dot { animation: pulse 2s infinite; }
+.dot2 { animation: pulse 2s infinite 0.6s; }
+.dot3 { animation: pulse 2s infinite 1.2s; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+body { background: transparent; }
+</style>
+
+<div style="border: 1px solid #e0e0e0; border-radius: 14px; padding: 1.5rem 2rem; background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%); margin-bottom: 1rem;">
+
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.8rem;">
+    <div class="dot" style="width:8px;height:8px;border-radius:50%;background:#1D9E75;"></div>
+    <div class="dot2" style="width:8px;height:8px;border-radius:50%;background:#378ADD;"></div>
+    <div class="dot3" style="width:8px;height:8px;border-radius:50%;background:#D4537E;"></div>
+    <span style="font-size:11px;color:#888;letter-spacing:0.08em;margin-left:4px;">● LIVE</span>
+  </div>
+
+  <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+        <span style="font-size:28px;">🖧</span>
+        <div>
+          <div style="font-size:20px; font-weight:600; color:#1a1a2e; line-height:1.2;">AI-Based Network Monitoring & Self-Healing System</div>
+          <div style="font-size:13px; color:#555; margin-top:2px;">⚡ Real-Time AI Network Intelligence Platform</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div id="clock" style="font-size:15px; font-weight:600; color:#1a1a2e; font-family:monospace;"></div>
+      <div id="dateline" style="font-size:11px; color:#888; margin-top:2px;"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:1.2rem; padding-top:1rem; border-top:1px solid #dde3f0; display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:18px;">🎓</span>
+      <div>
+        <div style="font-size:10px; color:#888; text-transform:uppercase; letter-spacing:0.06em;">Institute</div>
+        <div style="font-size:12px; font-weight:600; color:#1a1a2e;">Jetking Infotrain, Dadar</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:18px;">🚀</span>
+      <div>
+        <div style="font-size:10px; color:#888; text-transform:uppercase; letter-spacing:0.06em;">Event</div>
+        <div style="font-size:12px; font-weight:600; color:#1a1a2e;">TechFest 2026</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:18px;">👨‍💻</span>
+      <div>
+        <div style="font-size:10px; color:#888; text-transform:uppercase; letter-spacing:0.06em;">Developer</div>
+        <div style="font-size:12px; font-weight:600; color:#1a1a2e;">Sanad Haddadi</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:18px;">📅</span>
+      <div>
+        <div style="font-size:10px; color:#888; text-transform:uppercase; letter-spacing:0.06em;">Date</div>
+        <div style="font-size:12px; font-weight:600; color:#1a1a2e;">19 June 2026</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function tick() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('dateline').textContent = now.toLocaleDateString('en-IN', {day:'2-digit',month:'long',year:'numeric'});
+}
+tick();
+setInterval(tick, 1000);
+</script>
+""", height=230)
 
 # ================= AUTO REFRESH =================
 st_autorefresh(interval=5000, key="refresh")
@@ -134,7 +216,7 @@ connection_type = get_connection_type()
 st.session_state.ping.append(ping)
 st.session_state.ping = st.session_state.ping[-20:]
 
-# ================= GLOBAL CPU/RAM (har page ke liye) =================
+# ================= GLOBAL CPU/RAM =================
 cpu_global = psutil.cpu_percent(interval=0.1)
 ram_global = psutil.virtual_memory().percent
 risk_global = (cpu_global + ram_global) / 2
@@ -148,7 +230,7 @@ elif cpu_global > 90:
 elif ram_global > 90:
     prediction_global = "MEMORY OVERLOAD"
 
-# ================= GLOBAL ALERT (har page pe dikhega) =================
+# ================= GLOBAL ALERT =================
 if network_status == "DOWN":
     show_alert("NETWORK FAILURE DETECTED - AI RECOVERY MODE ACTIVE")
 elif cpu_global > 90:
@@ -191,14 +273,54 @@ else:
     stop_buzzer()
 
 
+# ================= BANDWIDTH FUNCTION =================
+def get_bandwidth():
+    net1 = psutil.net_io_counters()
+    time.sleep(1)
+    net2 = psutil.net_io_counters()
+    upload = (net2.bytes_sent - net1.bytes_sent) / 1024
+    download = (net2.bytes_recv - net1.bytes_recv) / 1024
+    return round(upload, 2), round(download, 2)
+
+
 # ================= DASHBOARD =================
 if page == "Dashboard":
+    st.success("🤖 AI ENGINE ACTIVE")
+    st.success("🔧 SELF HEALING ENABLED")
+    st.success("📡 LIVE NETWORK MONITORING")
+    st.success("📧 EMAIL ALERT SYSTEM ACTIVE")
+    st.success("🧠 AI FAILURE PREDICTION ENABLED")
 
     cpu = cpu_global
     ram = ram_global
     disk = psutil.disk_usage("C:\\").percent
     risk = risk_global
     prediction = prediction_global
+
+    # ================= AI MODEL PREDICTION =================
+    result = model.predict([[cpu_global, ram_global, 1 if network_status == "UP" else 0]])[0]
+
+    if result == 0:
+        st.success("🟢 AI Prediction: NORMAL")
+    elif result == 1:
+        st.warning("🟡 AI Prediction: WARNING")
+    else:
+        st.error("🔴 AI Prediction: FAILURE LIKELY")
+
+    # ================= BANDWIDTH =================
+    upload, download = get_bandwidth()
+
+    st.markdown("## 🌐 LIVE BANDWIDTH")
+    c1, c2 = st.columns(2)
+    c1.metric("⬆ Upload KB/s", upload)
+    c2.metric("⬇ Download KB/s", download)
+
+    # ================= AI RISK SCORE =================
+    risk_score = min(100, int((cpu_global + ram_global) / 2))
+
+    st.markdown("## 🧠 AI RISK SCORE")
+    st.metric("Risk", f"{risk_score}%")
+    st.progress(risk_score / 100)
 
     # ================= AUTO HEAL STATUS DISPLAY =================
     if cpu > 90:
@@ -366,3 +488,49 @@ elif page == "AI Assistant":
             st.markdown(result["response"])
         else:
             st.warning("Please type a question first.")
+
+
+# ================= LAN MONITORING =================
+elif page == "LAN Monitoring":
+    show_lan()
+
+# ================== projet ppt ==============
+elif page == "Project PPT":
+    show_project_ppt()
+    
+# ================= FOOTER =================
+st.markdown("---")
+import streamlit.components.v1 as components
+components.html("""
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.dot { animation: pulse 2s infinite; }
+</style>
+
+<div style="border: 1px solid #e0e0e0; border-radius: 14px; padding: 1.2rem 2rem; background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%); text-align:center;">
+
+  <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:8px;">
+    <div class="dot" style="width:7px;height:7px;border-radius:50%;background:#1D9E75;"></div>
+    <span style="font-size:13px; font-weight:600; color:#1a1a2e;">🖧 AI Network Monitor — TechFest 2026</span>
+  </div>
+
+  <div style="font-size:11px; color:#888; margin-bottom:10px;">
+    Developed by <strong style="color:#378ADD;">Sanad Haddadi</strong> &nbsp;|&nbsp;
+    Jetking Infotrain Ltd, Dadar, Mumbai &nbsp;|&nbsp;
+    19 June 2026
+  </div>
+
+  <div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap;">
+    <span style="font-size:11px; color:#1D9E75;">✅ AI Engine Active</span>
+    <span style="font-size:11px; color:#378ADD;">📡 Live Monitoring</span>
+    <span style="font-size:11px; color:#D4537E;">🔧 Self-Healing Enabled</span>
+    <span style="font-size:11px; color:#BA7517;">🧠 Failure Prediction ON</span>
+  </div>
+
+  <div style="margin-top:10px; font-size:10px; color:#aaa;">
+    © 2026 Sanad Haddadi. Built with Python, Streamlit & AI.
+  </div>
+
+</div>
+""", height=130)

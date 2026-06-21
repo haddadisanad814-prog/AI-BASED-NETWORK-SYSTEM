@@ -86,183 +86,87 @@ def get_local_ip():
         return "Unknown"
 
 
-# ================= GET CONNECTED IPS (live connections) =================
+# ================= GET LIVE CONNECTIONS =================
 def get_connected_ips():
     connections = []
+
     try:
         for conn in psutil.net_connections(kind='inet'):
             if conn.status == 'ESTABLISHED' and conn.raddr:
                 ip = conn.raddr.ip
                 port = conn.raddr.port
+
                 if ip.startswith("127.") or ip == "::1":
                     continue
+
+                hostname = ip
                 try:
                     hostname = socket.getfqdn(ip)
                 except:
-                    hostname = ip
+                    pass
+
                 connections.append({
                     "ip": ip,
                     "port": port,
-                    "hostname": hostname if hostname != ip else "—"
+                    "hostname": hostname
                 })
+
     except:
         pass
+
+    # remove duplicates
     seen = set()
     unique = []
+
     for c in connections:
         if c["ip"] not in seen:
             seen.add(c["ip"])
             unique.append(c)
+
     return unique
 
 
-# ================= MAIN TOPOLOGY DISPLAY =================
+# ================= MAIN DASHBOARD =================
 def show_topology(cpu, ram, network):
+
     st.markdown("## 🌐 NETWORK TOPOLOGY MAP")
 
     local_ip = get_local_ip()
 
-    # Detect base network from local IP
-    if local_ip != "Unknown":
-        base = ".".join(local_ip.split(".")[:3])
-    else:
-        base = "192.168.29"
-
     # ================= STATUS CARDS =================
     col1, col2, col3, col4 = st.columns(4)
+
     with col1:
         if network == "DOWN":
-            st.error("📡 ROUTER DOWN")
+            st.error("📡 NETWORK DOWN")
         else:
-            st.success("📡 ROUTER UP")
+            st.success("📡 NETWORK UP")
+
     with col2:
         if cpu > 90:
-            st.error("🔀 SWITCH CPU HIGH")
+            st.error("⚠️ CPU HIGH")
         else:
-            st.success("🔀 SWITCH NORMAL")
+            st.success(f"🔀 CPU: {cpu}%")
+
     with col3:
         if ram > 90:
-            st.error("🖥 SERVER RAM HIGH")
+            st.error("⚠️ RAM HIGH")
         else:
-            st.success("🖥 SERVER NORMAL")
+            st.success(f"🖥 RAM: {ram}%")
+
     with col4:
-        st.success(f"💻 THIS PC\n🔵 {local_ip}")
+        st.success(f"💻 THIS SYSTEM\n🔵 {local_ip}")
 
     st.markdown("---")
 
-    # ================= WAN SCANNER =================
-    st.markdown("### 🔍 WAN DEVICE SCANNER")
-    st.caption(f"Network Range: `{base}.1` → `{base}.254`")
-
-    col_scan, col_info = st.columns([1, 3])
-    with col_scan:
-        scan_btn = st.button("🚀 Scan Network", type="primary")
-
-    if scan_btn:
-        with st.spinner(f"🔍 Scanning {base}.0/24 ... (takes 15-30 sec)"):
-            devices = scan_network(base_ip=base)
-            st.session_state["scanned_devices"] = devices
-            st.session_state["scan_time"] = datetime.now().strftime("%H:%M:%S")
-
-    # ================= SHOW SCAN RESULTS =================
-    if "scanned_devices" in st.session_state and st.session_state["scanned_devices"]:
-        devices = st.session_state["scanned_devices"]
-        scan_time = st.session_state.get("scan_time", "—")
-
-        st.success(f"✅ {len(devices)} device(s) found on network | Last scan: {scan_time}")
-
-        # ---- SUMMARY COUNTS ----
-        routers = [d for d in devices if d["type"] == "router"]
-        switches = [d for d in devices if d["type"] == "switch"]
-        clients = [d for d in devices if d["type"] == "client"]
-        mobiles = [d for d in devices if d["type"] == "mobile"]
-        printers = [d for d in devices if d["type"] == "printer"]
-
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("📡 Routers", len(routers))
-        m2.metric("🔀 Switches", len(switches))
-        m3.metric("💻 Clients", len(clients))
-        m4.metric("📱 Mobiles", len(mobiles))
-        m5.metric("🖨️ Printers", len(printers))
-
-        st.markdown("---")
-
-        # ---- VISUAL TOPOLOGY ----
-        st.markdown("### 🗺️ LIVE TOPOLOGY VIEW")
-
-        # Show Internet → Router → devices flow
-        st.markdown("""
-```
+    # ================= TOPOLOGY VIEW =================
+    st.markdown("### 🗺️ TOPOLOGY VIEW")
+st.markdown("""
 🌍 INTERNET
      │
      ▼
-📡 ROUTER (Gateway)
+📡 ROUTER
      │
-     ├──── 🔀 SWITCHES
-     │          │
-     │          └──── 💻 CLIENTS / 📱 MOBILES
-     │
-     └──── 💻 DIRECT CLIENTS
-```
+     ▼
+💻 THIS SYSTEM
 """)
-
-        # ---- DEVICE TABLE ----
-        st.markdown("### 📋 ALL DETECTED DEVICES")
-
-        # Group by type
-        type_order = ["router", "switch", "client", "mobile", "printer"]
-        type_names = {
-            "router": "📡 Routers",
-            "switch": "🔀 Switches",
-            "client": "💻 Clients / PCs",
-            "mobile": "📱 Mobile Devices",
-            "printer": "🖨️ Printers"
-        }
-
-        for dtype in type_order:
-            group = [d for d in devices if d["type"] == dtype]
-            if not group:
-                continue
-
-            st.markdown(f"#### {type_names[dtype]}")
-            h1, h2, h3, h4 = st.columns([2, 3, 2, 1])
-            h1.markdown("**IP Address**")
-            h2.markdown("**Hostname**")
-            h3.markdown("**Device Type**")
-            h4.markdown("**Status**")
-
-            for d in group:
-                c1, c2, c3, c4 = st.columns([2, 3, 2, 1])
-                # Highlight local machine
-                if d["ip"] == local_ip:
-                    c1.code(f"{d['ip']} ← YOU")
-                else:
-                    c1.code(d["ip"])
-                c2.write(d["hostname"])
-                c3.write(d["label"])
-                c4.success("🟢 UP")
-
-            st.markdown("---")
-
-    elif "scanned_devices" in st.session_state and len(st.session_state["scanned_devices"]) == 0:
-        st.warning("⚠️ Koi device nahi mila - Network DOWN ho sakta hai ya firewall block kar raha hai")
-
-    # ================= LIVE ACTIVE CONNECTIONS =================
-    st.markdown("### 🔗 LIVE ACTIVE CONNECTIONS (Real-time)")
-    connected = get_connected_ips()
-    if not connected:
-        st.info("🔍 Koi active connection nahi mila abhi")
-    else:
-        st.success(f"✅ {len(connected)} live connection(s)")
-        h1, h2, h3 = st.columns([2, 2, 4])
-        h1.markdown("**🌐 IP**")
-        h2.markdown("**🔌 Port**")
-        h3.markdown("**🖥 Hostname**")
-        st.markdown("---")
-        for c in connected:
-            c1, c2, c3 = st.columns([2, 2, 4])
-            c1.code(c["ip"])
-            c2.write(str(c["port"]))
-            c3.write(c["hostname"])
-
-    st.caption(f"🏠 Local IP: {local_ip} | Network: {network} | CPU: {cpu}% | RAM: {ram}%")
