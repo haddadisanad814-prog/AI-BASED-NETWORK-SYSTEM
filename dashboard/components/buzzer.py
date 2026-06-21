@@ -10,11 +10,12 @@ if IS_WINDOWS:
 
 
 def _alarm():
+    global running
+
     while running:
         if IS_WINDOWS:
             winsound.Beep(4000, 1500)
         else:
-            import time
             time.sleep(1.5)
 
 
